@@ -1,0 +1,61 @@
+// context/AuthContext.tsx
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, ReactNode, useContext, useState } from "react";
+import { JSX } from "react/jsx-runtime";
+
+// Define the shape of the context
+interface AuthContextType {
+  userToken: string | null;
+  signIn: (token: string) => void;
+  signOut: () => void;
+}
+
+// Create the context with a default value (undefined until wrapped in a provider)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Define the props for the provider
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider = ({
+  children,
+  initialToken = null,
+}: AuthProviderProps & { initialToken?: string | null }): JSX.Element => {
+  const [userToken, setUserToken] = useState<string | null>(initialToken);
+
+  const signIn = async (token: string): Promise<void> => {
+    try {
+      await AsyncStorage.setItem("token", token);
+      setUserToken(token);
+    } catch (error) {
+      console.error("Failed to save token", error);
+    }
+  };
+
+  const signOut = async (): Promise<void> => {
+    try {
+      await AsyncStorage.removeItem("token");
+      setUserToken(null);
+    } catch (error) {
+      console.error("Failed to remove token", error);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ userToken, signIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Custom hook to use the context
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+
+export default AuthProvider;
