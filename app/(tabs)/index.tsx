@@ -177,12 +177,12 @@ const LoginScreen = () => {
       >
         <Text style={loginStyles.signupText}>Create Account</Text>
       </TouchableOpacity>
-      {/* <TouchableOpacity
+      <TouchableOpacity
         style={loginStyles.signupButton}
         onPress={() => router.push("/ForgotPasswordScreen")}
       >
         <Text style={loginStyles.signupText}>Forgot Password?</Text>
-      </TouchableOpacity> */}
+      </TouchableOpacity>
     </View>
   );
 };
