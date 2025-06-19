@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import { Picker } from "@react-native-picker/picker";
+import Icon from "react-native-vector-icons/MaterialIcons";
+
 import { useRouter } from "expo-router";
 import moment from "moment";
 import React, { useEffect, useState } from "react";
@@ -210,7 +212,10 @@ const InventoryProcess = () => {
   ) => {
     setSkuValues((prev: any) => {
       const current = [...(prev.expiry?.[version]?.[skuKey] || [])];
-      current[index] = { ...current[index], qty: Number(qty) };
+      current[index] = {
+        ...current[index],
+        qty: qty === "" ? "" : Number(qty), // 👈 fix is here
+      };
 
       return {
         ...prev,
@@ -228,7 +233,7 @@ const InventoryProcess = () => {
   const addExpiryEntry = (skuKey: string) => {
     setSkuValues((prev: any) => {
       const current = [...(prev.expiry?.[version]?.[skuKey] || [])];
-      current.push({ date: "", qty: 0 });
+      current.push({ date: "", qty: "" });
 
       return {
         ...prev,
@@ -517,11 +522,11 @@ const InventoryProcess = () => {
         value: "NUTTY & NICE CHOCO NUT STOUT",
         code: "4 806534 610502",
       },
-      {
-        label: "SUNDAZE GOLDEN ALE (S&R)",
-        value: "SUNDAZE GOLDEN ALE (S&R)",
-        code: "4 806534 610403",
-      },
+      // {
+      //   label: "SUNDAZE GOLDEN ALE (S&R)",
+      //   value: "SUNDAZE GOLDEN ALE (S&R)",
+      //   code: "4 806534 610403",
+      // },
     ],
   };
 
@@ -941,13 +946,14 @@ const InventoryProcess = () => {
                                 >
                                   <Picker
                                     selectedValue={availabilityValue}
+                                    enabled={false}
                                     style={{
                                       height: 50,
                                       width: "100%",
                                       backgroundColor: "white",
                                     }}
                                     itemStyle={{
-                                      fontSize: 11, // Adjust this value as needed
+                                      fontSize: 11,
                                     }}
                                     onValueChange={(value) => {
                                       setAvailability((prev) => ({
@@ -957,44 +963,6 @@ const InventoryProcess = () => {
                                           [skuKey]: value,
                                         },
                                       }));
-
-                                      if (value !== "Carried") {
-                                        // Clear everything including expiry and quantity
-                                        setSkuValues((prev: any) => ({
-                                          ...prev,
-                                          beginning: {
-                                            ...(prev.beginning || {}),
-                                            [version]: {
-                                              ...(prev.beginning?.[version] ||
-                                                {}),
-                                              [skuKey]: "",
-                                            },
-                                          },
-                                          delivery: {
-                                            ...(prev.delivery || {}),
-                                            [version]: {
-                                              ...(prev.delivery?.[version] ||
-                                                {}),
-                                              [skuKey]: "",
-                                            },
-                                          },
-                                          ending: {
-                                            ...(prev.ending || {}),
-                                            [version]: {
-                                              ...(prev.ending?.[version] || {}),
-                                              [skuKey]: "",
-                                            },
-                                          },
-                                          expiry: {
-                                            ...(prev.expiry || {}),
-                                            [skuKey]: "", // clear expiry date
-                                          },
-                                          quantity: {
-                                            ...(prev.quantity || {}),
-                                            [skuKey]: "", // clear quantity
-                                          },
-                                        }));
-                                      }
                                     }}
                                     mode="dropdown"
                                   >
@@ -1003,17 +971,18 @@ const InventoryProcess = () => {
                                       value="Carried"
                                       style={{ fontSize: 11, color: "black" }}
                                     />
-                                    <Picker.Item
-                                      label="Not Carried"
-                                      value="Not Carried"
-                                      style={{ fontSize: 11, color: "black" }}
-                                    />
-                                    <Picker.Item
-                                      label="Delisted"
-                                      value="Delisted"
-                                      style={{ fontSize: 11, color: "black" }}
-                                    />
                                   </Picker>
+                                  <Icon
+                                    name="arrow-drop-down"
+                                    size={24}
+                                    color="grey"
+                                    style={{
+                                      position: "absolute",
+                                      right: 10,
+                                      top: 13,
+                                      pointerEvents: "none", // ensures Picker underneath still responds
+                                    }}
+                                  />
                                 </View>
                               )}
 
@@ -1092,7 +1061,7 @@ const InventoryProcess = () => {
                       const expiryList: { date: string; qty: number }[] =
                         skuValues.expiry?.[version]?.[skuKey]?.length > 0
                           ? skuValues.expiry[version][skuKey]
-                          : [{ date: "", qty: 0 }];
+                          : [{ date: "", qty: "" }];
 
                       return (
                         <View key={skuKey} style={{ marginBottom: 12 }}>
@@ -1124,6 +1093,7 @@ const InventoryProcess = () => {
                               {/* Quantity Field */}
                               <TextInput
                                 placeholder="Qty"
+                                placeholderTextColor={"grey"}
                                 style={[
                                   styles.inputBox,
                                   { flex: 1.5, height: 40, fontSize: 14 },
