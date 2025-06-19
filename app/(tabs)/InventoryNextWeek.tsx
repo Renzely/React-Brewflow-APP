@@ -370,15 +370,15 @@ export default function InventoryNextWeek() {
     return `${day}${month}${year}`;
   };
 
-  const handleQuantityChange = (skuKey: string, qty: string) => {
-    setSkuValues((prev: any) => ({
-      ...prev,
-      quantity: {
-        ...prev.quantity,
-        [skuKey]: qty,
-      },
-    }));
-  };
+  // const handleQuantityChange = (skuKey: string, qty: string) => {
+  //   setSkuValues((prev: any) => ({
+  //     ...prev,
+  //     quantity: {
+  //       ...prev.quantity,
+  //       [skuKey]: qty,
+  //     },
+  //   }));
+  // };
 
   const handleExpiryQtyChange = (
     skuKey: string,
@@ -391,7 +391,7 @@ export default function InventoryNextWeek() {
       const updatedExpiryList = [...currentExpiryList];
       updatedExpiryList[expiryIndex] = {
         ...updatedExpiryList[expiryIndex],
-        qty: qty,
+        qty: qty === "" ? "" : Number(qty),
       };
       return {
         ...prev,
@@ -409,7 +409,7 @@ export default function InventoryNextWeek() {
   const addExpiryEntry = (skuKey: string, version: string) => {
     setSkuValues((prev: any) => {
       const prevEntries = prev.expiry?.[version]?.[skuKey] || [];
-      const updatedEntries = [...prevEntries, { date: "", qty: 0 }];
+      const updatedEntries = [...prevEntries, { date: "", qty: "" }];
 
       return {
         ...prev,
@@ -999,6 +999,7 @@ export default function InventoryNextWeek() {
                                 {/* Quantity Field */}
                                 <TextInput
                                   placeholder="Qty"
+                                  placeholderTextColor={"grey"}
                                   style={[
                                     styles.inputBox,
                                     { flex: 1.5, height: 40, fontSize: 14 },
