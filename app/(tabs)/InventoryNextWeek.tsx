@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import NetInfo from "@react-native-community/netinfo";
 import { Picker } from "@react-native-picker/picker";
@@ -21,6 +20,17 @@ import styles from "./Style";
 interface PickerItem {
   label: string;
   value: string;
+}
+
+interface ExpiryItem {
+  date: string;
+  qty: number;
+}
+
+interface SelectedExpiryInfo {
+  skuKey: string;
+  version: string;
+  index: number;
 }
 
 interface SkuData {
@@ -88,8 +98,8 @@ interface GroupedInventory {
         endingPCS: number;
         offtake: number;
         inventoryDays: number;
-        expiryMonths: string;
-        expiryQty: number;
+        expiryMonths: string[];
+        expiryQty: number[];
       }>;
       "Not Carried": Array<{ sku: string; skuCode: string }>;
     };
@@ -137,6 +147,9 @@ export default function InventoryNextWeek() {
   const parsedData = JSON.parse(rawData);
   const [showPicker, setShowPicker] = useState(false);
   const [currentSkuKey, setCurrentSkuKey] = useState<string | null>(null);
+  const [currentExpiryIndex, setCurrentExpiryIndex] = useState<number | null>(
+    null
+  );
 
   const skuCodeMappingRaw = Array.isArray(skuCodeMappingStr)
     ? skuCodeMappingStr[0]
@@ -167,6 +180,9 @@ export default function InventoryNextWeek() {
   const [skuData, setSkuData] = useState<SkuData>({
     SKU: [],
   });
+
+  const [selectedExpiryInfo, setSelectedExpiryInfo] =
+    useState<SelectedExpiryInfo | null>(null);
 
   const router = useRouter();
 
@@ -217,31 +233,40 @@ export default function InventoryNextWeek() {
   ]);
 
   useEffect(() => {
-    const today = moment(); // Last submitted inventory date
+    if (expandedSection === "Expiry") {
+      Object.keys(skuData[version] || {}).forEach((_, i) => {
+        const skuKey = skuData[version][i].value;
+        const hasExpiry = skuValues.expiry?.[version]?.[skuKey]?.length > 0;
 
-    let lastFriday = today.clone().day(5);
-    if (today.day() < 5) {
-      lastFriday.subtract(7, "days");
+        if (!hasExpiry) {
+          addExpiryEntry(skuKey, version); // This will add the first entry in actual state
+        }
+      });
     }
+  }, [expandedSection, skuData, version, skuValues.expiry]);
 
-    // 2. USE YOUR EXACT DATE RANGE CALCULATION
-    const weekStart = lastFriday.clone().subtract(6, "days"); // Saturday
-    const weekEnd = lastFriday.clone(); // Friday
+  useEffect(() => {
+    const today = moment();
 
+    // 1️⃣ Get current week's Monday and Friday
+    const weekStart = today.clone().startOf("isoWeek"); // Monday
+    const weekEnd = today.clone().isoWeekday(5); // Friday
+
+    // 2️⃣ Format label like "Jun16-Jun20"
     const label = `${weekStart.format("MMMDD")}-${weekEnd.format("MMMDD")}`;
     setWeeksCovered(label);
 
-    const monthName = lastFriday.format("MMMM");
-
-    const startOfYear = moment().startOf("year");
-    const firstFriday =
-      startOfYear.day() <= 5
-        ? startOfYear.day(5)
-        : startOfYear.add(1, "week").day(5);
-
-    const weekNum = lastFriday.diff(firstFriday, "weeks") + 1;
-
+    // 3️⃣ Month (based on Friday)
+    const monthName = weekEnd.format("MMMM");
     setMonth(monthName);
+
+    // 4️⃣ Week number: count Fridays since the first Friday of the year
+    const startOfYear = moment().startOf("year");
+    const firstFriday = startOfYear.clone().day(5).isBefore(startOfYear)
+      ? startOfYear.clone().add(1, "week").day(5)
+      : startOfYear.clone().day(5);
+
+    const weekNum = weekEnd.diff(firstFriday, "weeks") + 1;
     setWeek(`Week ${weekNum}`);
 
     const newSkuValues = { ...skuValues };
@@ -274,16 +299,52 @@ export default function InventoryNextWeek() {
     }));
   };
 
-  const showDatePicker = (skuKey: string) => {
-    setCurrentSkuKey(skuKey);
+  const showDatePicker = (skuKey: string, version: string, index: number) => {
+    setSelectedExpiryInfo({ skuKey, version, index });
     setShowPicker(true);
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(false);
-    if (selectedDate && currentSkuKey) {
-      const formattedDate = formatDate(selectedDate);
-      handleInputChange("expiry", currentSkuKey, formattedDate); // fix here
+  const onDateChange = (event: { type: string }, selectedDate?: Date) => {
+    if (event.type === "set" && selectedExpiryInfo && selectedDate) {
+      const { skuKey, version, index } = selectedExpiryInfo;
+
+      // Format: 18JUN25
+      const day = selectedDate.getDate().toString().padStart(2, "0");
+      const month = selectedDate
+        .toLocaleString("en-PH", { month: "short" })
+        .toUpperCase();
+      const year = selectedDate.getFullYear().toString().slice(-2);
+      const formattedDate = `${day}${month}${year}`;
+
+      setSkuValues((prev: any) => {
+        const updated = { ...prev };
+        const expiryList = updated.expiry?.[version]?.[skuKey] || [];
+
+        const updatedExpiryList = [...expiryList];
+        if (updatedExpiryList[index]) {
+          updatedExpiryList[index] = {
+            ...updatedExpiryList[index],
+            date: formattedDate,
+          };
+        }
+
+        return {
+          ...updated,
+          expiry: {
+            ...updated.expiry,
+            [version]: {
+              ...updated.expiry?.[version],
+              [skuKey]: updatedExpiryList,
+            },
+          },
+        };
+      });
+
+      setShowPicker(false);
+      setSelectedExpiryInfo(null);
+    } else {
+      setShowPicker(false);
+      setSelectedExpiryInfo(null);
     }
   };
 
@@ -317,6 +378,74 @@ export default function InventoryNextWeek() {
         [skuKey]: qty,
       },
     }));
+  };
+
+  const handleExpiryQtyChange = (
+    skuKey: string,
+    version: string,
+    expiryIndex: number,
+    qty: string
+  ) => {
+    setSkuValues((prev: any) => {
+      const currentExpiryList = prev.expiry?.[version]?.[skuKey] || [];
+      const updatedExpiryList = [...currentExpiryList];
+      updatedExpiryList[expiryIndex] = {
+        ...updatedExpiryList[expiryIndex],
+        qty: qty,
+      };
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...(prev.expiry?.[version] || {}),
+            [skuKey]: updatedExpiryList,
+          },
+        },
+      };
+    });
+  };
+
+  const addExpiryEntry = (skuKey: string, version: string) => {
+    setSkuValues((prev: any) => {
+      const prevEntries = prev.expiry?.[version]?.[skuKey] || [];
+      const updatedEntries = [...prevEntries, { date: "", qty: 0 }];
+
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...prev.expiry?.[version],
+            [skuKey]: updatedEntries,
+          },
+        },
+      };
+    });
+  };
+
+  const deleteExpiryEntry = (
+    skuKey: string,
+    version: string,
+    index: number
+  ) => {
+    setSkuValues((prev: any) => {
+      const prevEntries = prev.expiry?.[version]?.[skuKey] || [];
+      const updatedEntries = prevEntries.filter(
+        (_: any, i: number) => i !== index
+      );
+
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...prev.expiry?.[version],
+            [skuKey]: updatedEntries,
+          },
+        },
+      };
+    });
   };
 
   const filteredSkuOptions = Object.keys(
@@ -438,6 +567,7 @@ export default function InventoryNextWeek() {
         };
 
         if (status === "Carried") {
+          const expiryList = skuValues.expiry?.[v]?.[skuKey] || [];
           groupedInventory.versions[v][status].push({
             ...commonFields,
             beginningPCS: Number(skuValues.beginning?.[v]?.[skuKey] || 0),
@@ -445,8 +575,11 @@ export default function InventoryNextWeek() {
             endingPCS: Number(skuValues.ending?.[v]?.[skuKey] || 0),
             offtake: Number(skuValues.offtake?.[v]?.[skuKey] || 0),
             inventoryDays: Number(skuValues.inventoryDays?.[v]?.[skuKey] || 0),
-            expiryMonths: skuValues.expiry?.[v]?.[skuKey] || "", // ✅ fixed here
-            expiryQty: Number(skuValues.quantity?.[v]?.[skuKey] || 0), // ✅ fixed here
+
+            expiryMonths: expiryList
+              .map((e: ExpiryItem) => e.date)
+              .filter(Boolean),
+            expiryQty: expiryList.map((e: ExpiryItem) => Number(e.qty) || 0),
           });
         } else {
           groupedInventory.versions[v][status].push(commonFields);
@@ -454,33 +587,10 @@ export default function InventoryNextWeek() {
       });
     });
 
-    const saveOffline = async () => {
-      try {
-        const existing = await AsyncStorage.getItem("offlineInventories");
-        const offlineList = existing ? JSON.parse(existing) : [];
-
-        offlineList.push({ data: groupedInventory, previousWeekId }); // <<<< THIS
-
-        await AsyncStorage.setItem(
-          "offlineInventories",
-          JSON.stringify(offlineList)
-        );
-
-        Alert.alert(
-          "Saved Offline",
-          "No internet. Inventory will sync automatically later."
-        );
-        router.push("/HomeScreen");
-      } catch (err) {
-        console.error("Failed to save locally:", err);
-        Alert.alert("Error", "Couldn't save inventory offline");
-      }
-    };
-
     try {
       const netState = await NetInfo.fetch();
       if (!netState.isConnected) {
-        await saveOffline();
+        //await saveOffline();
         return;
       }
 
@@ -511,7 +621,7 @@ export default function InventoryNextWeek() {
       router.push("/HomeScreen");
     } catch (err) {
       if (isNetworkError(err)) {
-        await saveOffline();
+        // await saveOffline();
       } else {
         console.error("Save error:", err);
         Alert.alert("Error", "Failed to save inventory");
@@ -845,58 +955,115 @@ export default function InventoryNextWeek() {
                         availability[version]?.[skuKey] || "Carried";
                       const isEditable = availabilityValue === "Carried";
 
+                      const expiryEntriesRaw =
+                        skuValues.expiry?.[version]?.[skuKey] || [];
+                      // Ensure at least one expiry entry to show SKU immediately
+                      const expiryEntries =
+                        expiryEntriesRaw.length > 0
+                          ? expiryEntriesRaw
+                          : [{ date: "", qty: "" }];
+
                       return (
-                        <TouchableOpacity
-                          key={skuKey}
-                          activeOpacity={1}
-                          onPress={() => {}}
-                          style={[
-                            styles.skuItemRow,
-                            {
-                              flexDirection: "row",
-                              alignItems: "center",
-                              marginBottom: 12,
-                            },
-                          ]}
-                        >
-                          {/* SKU Label */}
-                          <Text style={[styles.skuText, { flex: 2 }]}>
-                            {skuItem.label}
-                          </Text>
+                        <View key={skuKey} style={{ marginBottom: 12 }}>
+                          {/* Render all expiry rows */}
+                          {expiryEntries.map(
+                            (
+                              expiryItem: { date: string; qty: string },
+                              index: number
+                            ) => (
+                              <View
+                                key={`${skuKey}-${index}`}
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  marginBottom: 10,
+                                }}
+                              >
+                                {/* Always show SKU Label on every row */}
+                                <Text style={[styles.skuText, { flex: 2 }]}>
+                                  {skuItem.label}
+                                </Text>
 
-                          {/* Date Picker Button */}
-                          <View style={{ flex: 3, marginHorizontal: 8 }}>
-                            <Button
-                              title={
-                                skuValues.expiry?.[version]?.[skuKey]
-                                  ? skuValues.expiry[version][skuKey]
-                                  : "Select Date"
-                              }
-                              onPress={() => showDatePicker(skuKey)}
-                              disabled={!isEditable} // disable if not editable
-                              color={isEditable ? "#2c1c5c" : "#d3d3d3"} // blue if editable, gray if disabled
-                            />
-                          </View>
+                                {/* Date Picker Button */}
+                                <View style={{ flex: 3, marginHorizontal: 8 }}>
+                                  <Button
+                                    title={expiryItem.date || "Select Date"}
+                                    onPress={() =>
+                                      showDatePicker(skuKey, version, index)
+                                    }
+                                    disabled={!isEditable}
+                                    color={isEditable ? "#2c1c5c" : "#d3d3d3"}
+                                  />
+                                </View>
 
-                          {/* Quantity Field */}
-                          <TextInput
-                            placeholder="Qty"
-                            style={[
-                              styles.inputBox,
-                              { flex: 1.5, height: 40, fontSize: 14 },
-                            ]}
-                            keyboardType="numeric"
-                            value={skuValues.quantity?.[skuKey] || ""}
-                            onChangeText={(text) =>
-                              handleQuantityChange(skuKey, text)
-                            }
-                            editable={isEditable} // disable if not editable
-                          />
-                        </TouchableOpacity>
+                                {/* Quantity Field */}
+                                <TextInput
+                                  placeholder="Qty"
+                                  style={[
+                                    styles.inputBox,
+                                    { flex: 1.5, height: 40, fontSize: 14 },
+                                  ]}
+                                  keyboardType="numeric"
+                                  value={expiryItem.qty?.toString() || ""}
+                                  onChangeText={(text) =>
+                                    handleExpiryQtyChange(
+                                      skuKey,
+                                      version,
+                                      index,
+                                      text
+                                    )
+                                  }
+                                  editable={isEditable}
+                                />
+                              </View>
+                            )
+                          )}
+
+                          {/* Add & Remove Expiry Buttons */}
+                          {isEditable && (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginTop: 4,
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              <TouchableOpacity
+                                onPress={() => addExpiryEntry(skuKey, version)}
+                              >
+                                <Text
+                                  style={{ color: "#2c1c5c", fontSize: 14 }}
+                                >
+                                  + Add Expiry
+                                </Text>
+                              </TouchableOpacity>
+
+                              {expiryEntries.length > 1 ? (
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    deleteExpiryEntry(
+                                      skuKey,
+                                      version,
+                                      expiryEntries.length - 1
+                                    )
+                                  }
+                                >
+                                  <Text style={{ color: "red", fontSize: 18 }}>
+                                    ✕
+                                  </Text>
+                                </TouchableOpacity>
+                              ) : (
+                                <View style={{ width: 30 }} />
+                              )}
+                            </View>
+                          )}
+                        </View>
                       );
                     })}
 
-                    {/* Android-only DateTimePicker - outside the map */}
+                    {/* Android-only DateTimePicker */}
                     {showPicker && (
                       <DateTimePicker
                         value={new Date()}

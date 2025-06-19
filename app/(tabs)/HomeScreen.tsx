@@ -1102,9 +1102,17 @@ const InventoryCard: React.FC<{ item: InventoryItem }> = ({ item }) => {
           <Text style={styles.itemText}>Offtake: {sku.offtake}</Text>
           <Text style={styles.itemText}>IDL: {sku.inventoryDays}</Text>
           <Text style={styles.itemText}>
-            Expiry (Months): {sku.expiryMonths}
+            Expiry (Months):{" "}
+            {Array.isArray(sku.expiryMonths)
+              ? sku.expiryMonths.join(", ")
+              : sku.expiryMonths}
           </Text>
-          <Text style={styles.itemText}>Expiry Qty: {sku.expiryQty}</Text>
+          <Text style={styles.itemText}>
+            Expiry Qty:{" "}
+            {Array.isArray(sku.expiryQty)
+              ? sku.expiryQty.join(", ")
+              : sku.expiryQty}
+          </Text>
         </>
       )}
     </View>
