@@ -26,6 +26,11 @@ interface PickerItem {
   value: string;
 }
 
+interface ExpiryItem {
+  date: string;
+  qty: number;
+}
+
 interface AndroidPickerProps {
   label: string;
   selectedValue: string;
@@ -131,7 +136,9 @@ const InventoryProcess = () => {
 
   const [showPicker, setShowPicker] = useState(false);
   const [currentSkuKey, setCurrentSkuKey] = useState<string | null>(null);
-
+  const [selectedExpiryIndex, setSelectedExpiryIndex] = useState<number | null>(
+    null
+  );
   const [version, setVersion] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -156,30 +163,102 @@ const InventoryProcess = () => {
   });
   const router = useRouter();
 
-  const handleExpiryChange = (skuKey: string, formattedDate: string) => {
-    setSkuValues((prev: any) => ({
-      ...prev,
-      expiry: {
-        ...prev.expiry,
-        [version]: {
-          ...(prev.expiry?.[version] || {}),
-          [skuKey]: formattedDate,
-        },
-      },
-    }));
-  };
-
-  const showDatePicker = (skuKey: string) => {
+  const showDatePicker = (skuKey: string, index: number) => {
     setCurrentSkuKey(skuKey);
+    setSelectedExpiryIndex(index);
     setShowPicker(true);
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(false);
-    if (selectedDate && currentSkuKey) {
-      const formattedDate = formatDate(selectedDate);
-      handleExpiryChange(currentSkuKey, formattedDate);
+    if (
+      selectedDate &&
+      currentSkuKey !== null &&
+      selectedExpiryIndex !== null
+    ) {
+      const formattedDate = formatDate(selectedDate); // You should already have this
+      handleExpiryChange(currentSkuKey, selectedExpiryIndex, formattedDate);
     }
+  };
+
+  const handleExpiryChange = (
+    skuKey: string,
+    index: number,
+    formattedDate: string
+  ) => {
+    setSkuValues((prev: any) => {
+      const current = [...(prev.expiry?.[version]?.[skuKey] || [])];
+      current[index] = { ...current[index], date: formattedDate };
+
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...(prev.expiry?.[version] || {}),
+            [skuKey]: current,
+          },
+        },
+      };
+    });
+  };
+
+  const handleExpiryQtyChange = (
+    skuKey: string,
+    index: number,
+    qty: string
+  ) => {
+    setSkuValues((prev: any) => {
+      const current = [...(prev.expiry?.[version]?.[skuKey] || [])];
+      current[index] = { ...current[index], qty: Number(qty) };
+
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...(prev.expiry?.[version] || {}),
+            [skuKey]: current,
+          },
+        },
+      };
+    });
+  };
+
+  const addExpiryEntry = (skuKey: string) => {
+    setSkuValues((prev: any) => {
+      const current = [...(prev.expiry?.[version]?.[skuKey] || [])];
+      current.push({ date: "", qty: 0 });
+
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...(prev.expiry?.[version] || {}),
+            [skuKey]: current,
+          },
+        },
+      };
+    });
+  };
+
+  const deleteExpiryEntry = (skuKey: string, index: number) => {
+    setSkuValues((prev: any) => {
+      const current = [...(prev.expiry?.[version]?.[skuKey] || [])];
+      current.splice(index, 1); // Remove the selected entry
+
+      return {
+        ...prev,
+        expiry: {
+          ...prev.expiry,
+          [version]: {
+            ...(prev.expiry?.[version] || {}),
+            [skuKey]: current,
+          },
+        },
+      };
+    });
   };
 
   // Helper function to format the date as "16NOV24"
@@ -560,7 +639,7 @@ const InventoryProcess = () => {
           sku: skuItem.value,
           skuCode: skuItem.code,
         };
-
+        const expiryList = skuValues.expiry?.[v]?.[skuKey] ?? [];
         if (status === "Carried") {
           groupedInventory.versions[v][status].push({
             ...commonFields,
@@ -569,8 +648,10 @@ const InventoryProcess = () => {
             endingPCS: Number(skuValues.ending?.[v]?.[skuKey] || 0),
             offtake: Number(skuValues.offtake?.[v]?.[skuKey] || 0),
             inventoryDays: Number(skuValues.inventoryDays?.[v]?.[skuKey] || 0),
-            expiryMonths: skuValues.expiry?.[v]?.[skuKey] || "", // ✅
-            expiryQty: Number(skuValues.quantity?.[v]?.[skuKey] || 0), // ✅
+            expiryMonths: expiryList
+              .map((e: ExpiryItem) => e.date)
+              .filter(Boolean),
+            expiryQty: expiryList.map((e: ExpiryItem) => Number(e.qty) || 0),
           });
         } else {
           groupedInventory.versions[v][status].push(commonFields);
@@ -580,37 +661,37 @@ const InventoryProcess = () => {
 
     // Use previousWeekId from state or props if available
 
-    const saveOffline = async () => {
-      try {
-        const existing = await AsyncStorage.getItem("offlineInventories");
-        const offlineList: OfflineInventoryItem[] = existing
-          ? JSON.parse(existing)
-          : [];
+    // const saveOffline = async () => {
+    //   try {
+    //     const existing = await AsyncStorage.getItem("offlineInventories");
+    //     const offlineList: OfflineInventoryItem[] = existing
+    //       ? JSON.parse(existing)
+    //       : [];
 
-        offlineList.push({
-          data: groupedInventory,
-        });
+    //     offlineList.push({
+    //       data: groupedInventory,
+    //     });
 
-        await AsyncStorage.setItem(
-          "offlineInventories",
-          JSON.stringify(offlineList)
-        );
+    //     await AsyncStorage.setItem(
+    //       "offlineInventories",
+    //       JSON.stringify(offlineList)
+    //     );
 
-        Alert.alert(
-          "Saved Offline",
-          "No internet. Inventory will sync automatically later."
-        );
-        router.replace("/HomeScreen");
-      } catch (err) {
-        console.error("Failed to save locally:", err);
-        Alert.alert("Error", "Couldn't save inventory offline.");
-      }
-    };
+    //     Alert.alert(
+    //       "Saved Offline",
+    //       "No internet. Inventory will sync automatically later."
+    //     );
+    //     router.replace("/HomeScreen");
+    //   } catch (err) {
+    //     console.error("Failed to save locally:", err);
+    //     Alert.alert("Error", "Couldn't save inventory offline.");
+    //   }
+    // };
 
     try {
       const netState = await NetInfo.fetch();
       if (!netState.isConnected) {
-        await saveOffline();
+        //await saveOffline();
         return;
       }
 
@@ -635,7 +716,7 @@ const InventoryProcess = () => {
       }
     } catch (err) {
       if (err instanceof TypeError && err.message.includes("Network")) {
-        await saveOffline();
+        //await saveOffline();
       } else {
         console.error("❌ Error saving whole inventory:", err);
         Alert.alert("Error", "Failed to save inventory.");
@@ -983,7 +1064,6 @@ const InventoryProcess = () => {
                   </View>
                 );
               })}
-              {/* Expandable Expiry Section */}
               <View style={{ marginVertical: 10 }}>
                 <TouchableOpacity
                   style={styles.expandButton}
@@ -1008,60 +1088,101 @@ const InventoryProcess = () => {
                         availability[version]?.[skuKey] || "Carried";
                       const isEditable = availabilityValue === "Carried";
 
+                      // Get existing expiryList or initialize with one empty entry
+                      const expiryList: { date: string; qty: number }[] =
+                        skuValues.expiry?.[version]?.[skuKey]?.length > 0
+                          ? skuValues.expiry[version][skuKey]
+                          : [{ date: "", qty: 0 }];
+
                       return (
-                        <TouchableOpacity
-                          key={skuKey}
-                          activeOpacity={1}
-                          onPress={() => {}}
-                          style={[
-                            styles.skuItemRow,
-                            {
-                              flexDirection: "row",
-                              alignItems: "center",
-                              marginBottom: 12,
-                            },
-                          ]}
-                        >
-                          {/* SKU Label */}
-                          <Text style={[styles.skuText, { flex: 2 }]}>
-                            {skuItem.label}
-                          </Text>
+                        <View key={skuKey} style={{ marginBottom: 12 }}>
+                          {/* Render all expiry rows */}
+                          {expiryList.map((entry, index) => (
+                            <View
+                              key={`${skuKey}-${index}`}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                marginBottom: 10,
+                              }}
+                            >
+                              {/* SKU Label */}
+                              <Text style={[styles.skuText, { flex: 2 }]}>
+                                {skuItem.label}
+                              </Text>
 
-                          {/* Date Picker Button */}
-                          <View style={{ flex: 3, marginHorizontal: 8 }}>
-                            <Button
-                              title={
-                                skuValues.expiry?.[version]?.[skuKey]
-                                  ? skuValues.expiry[version][skuKey]
-                                  : "Select Date"
-                              }
-                              onPress={() => showDatePicker(skuKey)}
-                              disabled={!isEditable}
-                              color={isEditable ? "#2c1c5c" : "#d3d3d3"}
-                            />
-                          </View>
+                              {/* Date Picker Button */}
+                              <View style={{ flex: 3, marginHorizontal: 8 }}>
+                                <Button
+                                  title={entry.date || "Select Date"}
+                                  onPress={() => showDatePicker(skuKey, index)}
+                                  disabled={!isEditable}
+                                  color={isEditable ? "#2c1c5c" : "#d3d3d3"}
+                                />
+                              </View>
 
-                          {/* Quantity Field */}
-                          <TextInput
-                            placeholder="Qty"
-                            style={[
-                              styles.inputBox,
-                              { flex: 1.5, height: 40, fontSize: 14 },
-                            ]}
-                            keyboardType="numeric"
-                            value={
-                              skuValues.quantity?.[version]?.[skuKey] || ""
-                            }
-                            onChangeText={(text) =>
-                              handleQuantityChange(skuKey, text)
-                            }
-                            editable={isEditable}
-                          />
-                        </TouchableOpacity>
+                              {/* Quantity Field */}
+                              <TextInput
+                                placeholder="Qty"
+                                style={[
+                                  styles.inputBox,
+                                  { flex: 1.5, height: 40, fontSize: 14 },
+                                ]}
+                                keyboardType="numeric"
+                                value={entry.qty?.toString() || ""}
+                                onChangeText={(text) =>
+                                  handleExpiryQtyChange(skuKey, index, text)
+                                }
+                                editable={isEditable}
+                              />
+                            </View>
+                          ))}
+
+                          {/* Single row below all expiry rows */}
+                          {isEditable && (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginTop: 4,
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              {/* + Add Expiry button (left aligned) */}
+                              <TouchableOpacity
+                                onPress={() => addExpiryEntry(skuKey)}
+                              >
+                                <Text
+                                  style={{ color: "#2c1c5c", fontSize: 14 }}
+                                >
+                                  + Add Expiry
+                                </Text>
+                              </TouchableOpacity>
+
+                              {expiryList.length > 1 ? (
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    deleteExpiryEntry(
+                                      skuKey,
+                                      expiryList.length - 1
+                                    );
+                                  }}
+                                >
+                                  <Text style={{ color: "red", fontSize: 18 }}>
+                                    ✕
+                                  </Text>
+                                </TouchableOpacity>
+                              ) : (
+                                <View style={{ width: 30 }} />
+                              )}
+                            </View>
+                          )}
+                        </View>
                       );
                     })}
 
-                    {/* Android-only DateTimePicker - outside the map */}
+                    {/* Android-only DateTimePicker */}
                     {showPicker && (
                       <DateTimePicker
                         value={new Date()}
