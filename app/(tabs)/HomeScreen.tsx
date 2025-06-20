@@ -611,6 +611,7 @@ const AttendanceScreen = () => {
             AsyncStorage.setItem("outlet", value);
           }
         }}
+        listMode="SCROLLVIEW"
         style={{
           marginBottom: 30,
           borderRadius: 10,
