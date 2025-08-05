@@ -459,7 +459,7 @@ const InventoryProcess = () => {
         }
 
         const response = await fetch(
-          "https://react-brewflow-backend.onrender.com/user/outlets",
+          "https://api-brewflow.bmphrc.com/user/outlets",
           {
             method: "GET",
             headers: {
@@ -701,7 +701,7 @@ const InventoryProcess = () => {
       }
 
       const res = await fetch(
-        "https://react-brewflow-backend.onrender.com/inventory/grouped",
+        "https://api-brewflow.bmphrc.com/inventory/grouped",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

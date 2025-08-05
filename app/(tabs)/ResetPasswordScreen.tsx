@@ -21,7 +21,7 @@ const ResetPasswordScreen = () => {
 
     try {
       const res = await fetch(
-        "https://react-brewflow-backend.onrender.com/reset-password",
+        "https://api-brewflow.bmphrc.com/reset-password",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

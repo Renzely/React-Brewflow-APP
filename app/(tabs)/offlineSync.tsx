@@ -45,7 +45,7 @@
 
 //     try {
 //       const saveRes = await fetch(
-//         "https://react-brewflow-backend.onrender.com/inventory/grouped",
+//         "https://api-brewflow.bmphrc.com/inventory/grouped",
 //         {
 //           method: "POST",
 //           headers: { "Content-Type": "application/json" },
@@ -58,7 +58,7 @@
 //       // ✅ LOCK previous week's inventory (if exists)
 //       if (previousWeekId) {
 //         const lockRes = await fetch(
-//           "https://react-brewflow-backend.onrender.com/lock",
+//           "https://api-brewflow.bmphrc.com/lock",
 //           {
 //             method: "POST",
 //             headers: { "Content-Type": "application/json" },

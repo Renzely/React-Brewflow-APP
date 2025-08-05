@@ -2,6 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -24,6 +27,8 @@ import DropDownPicker from "react-native-dropdown-picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuth } from "./auth";
 import styles from "./Style";
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 type SKUCarried = {
   sku: string;
@@ -163,6 +168,7 @@ const AttendanceScreen = () => {
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleString("en-PH", {
+      timeZone: "Asia/Manila",
       weekday: "long", // e.g., "Friday"
       hour: "numeric",
       minute: "2-digit",
@@ -226,7 +232,7 @@ const AttendanceScreen = () => {
 
     try {
       const response = await fetch(
-        `https://react-brewflow-backend.onrender.com/attendance/history?email=${email}&outlet=${selectedOutlet}`,
+        `https://api-brewflow.bmphrc.com/attendance/history?email=${email}&outlet=${selectedOutlet}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -258,7 +264,7 @@ const AttendanceScreen = () => {
         }
 
         const response = await fetch(
-          "https://react-brewflow-backend.onrender.com/user/outlets",
+          "https://api-brewflow.bmphrc.com/user/outlets",
           {
             method: "GET",
             headers: {
@@ -312,17 +318,21 @@ const AttendanceScreen = () => {
     fetchEmail();
   }, []);
 
+  const getCurrentPhilippineDate = (): string => {
+    return dayjs().tz("Asia/Manila").format("YYYY-MM-DD");
+  };
+
   const fetchAttendanceData = async (outlet: string) => {
     if (!outlet || !email) return;
 
     setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getCurrentPhilippineDate();
       // Encode the parameters to handle special characters like &
       const encodedEmail = encodeURIComponent(email);
       const encodedOutlet = encodeURIComponent(outlet);
       const response = await fetch(
-        `https://react-brewflow-backend.onrender.com/attendance/status?email=${encodedEmail}&outlet=${encodedOutlet}&date=${today}`,
+        `https://api-brewflow.bmphrc.com/attendance/status?email=${encodedEmail}&outlet=${encodedOutlet}&date=${today}`,
         {
           method: "GET",
           headers: {
@@ -395,7 +405,7 @@ const AttendanceScreen = () => {
       const fileName = `Time_In_${email}_${timestamp}.jpg`;
 
       const presignRes = await fetch(
-        "https://react-brewflow-backend.onrender.com/save-attendance-images",
+        "https://api-brewflow.bmphrc.com/save-attendance-images",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -436,7 +446,7 @@ const AttendanceScreen = () => {
       }
 
       const saveRes = await fetch(
-        "https://react-brewflow-backend.onrender.com/attendance/time-in",
+        "https://api-brewflow.bmphrc.com/attendance/time-in",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -498,7 +508,7 @@ const AttendanceScreen = () => {
       const fileName = `Time_Out_${email}_${timestamp}.jpg`;
 
       const presignRes = await fetch(
-        "https://react-brewflow-backend.onrender.com/save-attendance-images",
+        "https://api-brewflow.bmphrc.com/save-attendance-images",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -539,7 +549,7 @@ const AttendanceScreen = () => {
       }
 
       const saveRes = await fetch(
-        "https://react-brewflow-backend.onrender.com/attendance/time-out",
+        "https://api-brewflow.bmphrc.com/attendance/time-out",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1294,7 +1304,7 @@ const InventoryContent = () => {
 
       if (netState.isConnected) {
         const res = await fetch(
-          `https://react-brewflow-backend.onrender.com/inventoryHistory?email=${encodeURIComponent(
+          `https://api-brewflow.bmphrc.com/inventoryHistory?email=${encodeURIComponent(
             userEmail
           )}`
         );
