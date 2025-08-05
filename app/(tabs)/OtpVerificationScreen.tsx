@@ -11,14 +11,11 @@ const OtpVerificationScreen = () => {
 
   const handleVerifyOtp = async () => {
     try {
-      const res = await fetch(
-        "https://react-brewflow-backend.onrender.com/verify-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, otp, purpose: "reset-password" }),
-        }
-      );
+      const res = await fetch("https://api-brewflow.bmphrc.com/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, purpose: "reset-password" }),
+      });
 
       const data = await res.json();
       if (res.ok) {

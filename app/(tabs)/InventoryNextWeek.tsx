@@ -595,7 +595,7 @@ export default function InventoryNextWeek() {
       }
 
       const saveRes = await fetch(
-        "https://react-brewflow-backend.onrender.com/inventory/grouped",
+        "https://api-brewflow.bmphrc.com/inventory/grouped",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -606,7 +606,7 @@ export default function InventoryNextWeek() {
       if (!saveRes.ok) throw new Error("Failed to save inventory");
 
       if (previousWeekId) {
-        await fetch("https://react-brewflow-backend.onrender.com/lock", {
+        await fetch("https://api-brewflow.bmphrc.com/lock", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -16,7 +16,7 @@ const ForgotPasswordScreen = () => {
 
     try {
       const res = await fetch(
-        "https://react-brewflow-backend.onrender.com/forgot-password",
+        "https://api-brewflow.bmphrc.com/forgot-password",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

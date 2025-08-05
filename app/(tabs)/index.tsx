@@ -65,14 +65,11 @@ const LoginScreen = () => {
 
     try {
       // Online login only
-      const response = await fetch(
-        "https://react-brewflow-backend.onrender.com/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const response = await fetch("https://api-brewflow.bmphrc.com/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
       const data = await response.json();
 

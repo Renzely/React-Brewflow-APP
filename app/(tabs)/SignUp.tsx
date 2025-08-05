@@ -32,14 +32,11 @@ const SignUp = () => {
     }
 
     try {
-      const res = await fetch(
-        "https://react-brewflow-backend.onrender.com/signup",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        }
-      );
+      const res = await fetch("https://api-brewflow.bmphrc.com/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
       const data = await res.json();
       if (res.ok) {
@@ -55,14 +52,11 @@ const SignUp = () => {
 
   const handleVerifyOtp = async () => {
     try {
-      const res = await fetch(
-        "https://react-brewflow-backend.onrender.com/verify-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: form.email, otp }),
-        }
-      );
+      const res = await fetch("https://api-brewflow.bmphrc.com/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, otp }),
+      });
 
       const data = await res.json();
       if (res.ok) {
